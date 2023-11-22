@@ -1,0 +1,125 @@
+classdef climate < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure      matlab.ui.Figure
+        ExportButton  matlab.ui.control.Button
+        LoadButton    matlab.ui.control.Button
+        Slider        matlab.ui.control.Slider
+        SliderLabel   matlab.ui.control.Label
+        UIAxes        matlab.ui.control.UIAxes
+    end
+
+    
+    properties (Access = private)
+        Year
+        Data
+        % Description
+        SmoothedData % Description
+    end
+    
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Button pushed function: LoadButton
+        function LoadButtonPushed(app, event)
+            url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/Paris?key=LCPPSUC4Y3NTNKRSDXWYBH22C';
+
+            weather = webread(url);
+
+            app.Year = datetime([weather.days.datetimeEpoch], 'convertfrom', 'posixtime', 'Format', 'MM/dd/yy');
+            app.Data = [weather.days.temp];
+            
+            plot(app.UIAxes, [app.Year], [app.Data]);
+            
+        end
+
+        % Value changing function: Slider
+        function SliderValueChanging(app, event)
+            changingValue = event.Value;
+            app.SmoothedData = smooth(app.Data,changingValue);
+            plot(app.UIAxes, app.Year, app.Data)
+            hold(app.UIAxes,'on')
+            plot(app.UIAxes, app.Year, app.SmoothedData)
+            hold(app.UIAxes,'off')
+        end
+
+        % Button pushed function: ExportButton
+        function ExportButtonPushed(app, event)
+            assignin('base', 'smoothedData', app.SmoothedData)
+        end
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure and hide until all components are created
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.Position = [100 100 640 480];
+            app.UIFigure.Name = 'MATLAB App';
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.UIFigure);
+            title(app.UIAxes, 'Title')
+            xlabel(app.UIAxes, 'X')
+            ylabel(app.UIAxes, 'Y')
+            zlabel(app.UIAxes, 'Z')
+            app.UIAxes.Position = [1 126 640 355];
+
+            % Create SliderLabel
+            app.SliderLabel = uilabel(app.UIFigure);
+            app.SliderLabel.HorizontalAlignment = 'right';
+            app.SliderLabel.Position = [8 98 36 22];
+            app.SliderLabel.Text = 'Slider';
+
+            % Create Slider
+            app.Slider = uislider(app.UIFigure);
+            app.Slider.ValueChangingFcn = createCallbackFcn(app, @SliderValueChanging, true);
+            app.Slider.Position = [65 107 565 3];
+
+            % Create LoadButton
+            app.LoadButton = uibutton(app.UIFigure, 'push');
+            app.LoadButton.ButtonPushedFcn = createCallbackFcn(app, @LoadButtonPushed, true);
+            app.LoadButton.Position = [199 21 100 23];
+            app.LoadButton.Text = 'Load';
+
+            % Create ExportButton
+            app.ExportButton = uibutton(app.UIFigure, 'push');
+            app.ExportButton.ButtonPushedFcn = createCallbackFcn(app, @ExportButtonPushed, true);
+            app.ExportButton.Position = [381 20 100 23];
+            app.ExportButton.Text = 'Export';
+
+            % Show the figure after all components are created
+            app.UIFigure.Visible = 'on';
+        end
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = climate
+
+            % Create UIFigure and components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end
